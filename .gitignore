@@ -48,3 +48,11 @@ asset/
 
 # 忽略所有以 .vs 结尾的目录
 .vs/
+
+# Local Python environment and test cache
+.venv/
+.pytest_cache/
+
+# Local credentials
+.env.*
+!.env.example
