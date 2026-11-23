@@ -1,0 +1,32 @@
+{
+  "identity": {
+    "en": "Savonia University of Applied Sciences is a Finnish higher education institution focused on working life. Its Finnish name is Savonia-ammattikorkeakoulu.",
+    "fi": "Savonia-ammattikorkeakoulu on suomalainen työelämälähtöinen korkeakoulu. Sen englanninkielinen nimi on Savonia University of Applied Sciences.",
+    "verified_on": "2026-11-23",
+    "sources": ["https://www.savonia.fi/en/", "https://www.savonia.fi/vuosikertomus-2025/"]
+  },
+  "campuses": {
+    "en": "Savonia has campuses in Kuopio, Iisalmi and Varkaus. In Kuopio, it operates at the Microkatu campus and the Kuopio Music Centre.",
+    "fi": "Savonian kampukset sijaitsevat Kuopiossa, Iisalmessa ja Varkaudessa. Kuopiossa Savonia toimii Microkadun kampuksella ja Kuopion Musiikkikeskuksessa.",
+    "verified_on": "2026-11-23",
+    "sources": ["https://www.savonia.fi/en/contact/campuses/visit-us/", "https://www.savonia.fi/vuosikertomus-2025/"]
+  },
+  "studies": {
+    "en": "Savonia offers bachelor's and master's degrees, as well as flexible options such as Open University of Applied Sciences studies.",
+    "fi": "Savoniassa voi suorittaa AMK- ja YAMK-tutkintoja tai opiskella joustavasti esimerkiksi avoimessa ammattikorkeakoulussa.",
+    "verified_on": "2026-11-23",
+    "sources": ["https://www.savonia.fi/en/study-with-us/studies/", "https://www.savonia.fi/opiskele-tutkinto/tutkinnot-ja-hakeminen/amk-ja-yamk-tutkinnot/"]
+  },
+  "international": {
+    "en": "Savonia offers English-taught degree programmes and exchange studies. Its official studies pages describe the options for international students.",
+    "fi": "Savonia tarjoaa englanninkielisiä tutkinto-ohjelmia ja vaihto-opintoja. Kansainvälisten opiskelijoiden vaihtoehdoista kerrotaan Savonian opintosivuilla.",
+    "verified_on": "2026-11-23",
+    "sources": ["https://www.savonia.fi/en/study-with-us/studies/", "https://www.savonia.fi/en/study-with-us/studies/exchange-studies/", "https://www.savonia.fi/tutustu-savoniaan/tietoa-savoniasta/kansainvalisyys/"]
+  },
+  "contact": {
+    "en": "Savonia publishes contact details and study information on its official website. The links are in the terminal.",
+    "fi": "Savonia julkaisee yhteystiedot ja opiskelutiedot virallisilla verkkosivuillaan. Linkit näkyvät päätteessä.",
+    "verified_on": "2026-11-23",
+    "sources": ["https://www.savonia.fi/", "https://www.savonia.fi/en/", "https://www.savonia.fi/en/contact/", "https://www.savonia.fi/tutustu-savoniaan/yhteystiedot/", "https://www.savonia.fi/en/study-with-us/studies/", "https://www.savonia.fi/opiskele-tutkinto/tutkinnot-ja-hakeminen/hakeminen/"]
+  }
+}

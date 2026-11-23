@@ -5,9 +5,6 @@ import wave
 from abc import ABC, abstractmethod
 import logging
 from datetime import datetime
-from .utils.utils import detect_language
-from funasr import AutoModel
-from funasr.utils.postprocess_utils import rich_transcription_postprocess
 import numpy as np
 logger = logging.getLogger(__name__)
 
@@ -40,6 +37,8 @@ class ASR(ABC):
 
 class FunASR(ASR):
     def __init__(self, config):
+        from funasr import AutoModel
+
         self.model_dir = config.get("model_dir")
         self.vad_dir = config.get("vad_dir", "fsmn-vad")
         self.output_dir = config.get("output_file")
@@ -53,6 +52,9 @@ class FunASR(ASR):
         )
         
     def recognizer(self, stream_in_audio):
+        from .utils.utils import detect_language
+        from funasr.utils.postprocess_utils import rich_transcription_postprocess
+
         try:
             tmpfile = os.path.join(self.output_dir, f"asr-{datetime.now().date()}@{uuid.uuid4().hex}.wav")
             # Enhance audio volume
@@ -80,6 +82,8 @@ class FunASR(ASR):
             return None, None
 
 class WhisperASR(ASR):
+    LANGUAGE_CODES = {"english": "en", "finnish": "fi", "chinese": "zh"}
+
     def __init__(self, config):
         from transformers import pipeline
         import torch
@@ -95,19 +99,46 @@ class WhisperASR(ASR):
             chunk_length_s=30,
             device=device,
         )
-    def recognizer(self, stream_in_audio,language):
+    def recognizer(self, stream_in_audio, *, keep_wav=True, raise_on_error=False):
+        self.last_detected_language = None
         try:
-            tmpfile = os.path.join(self.output_dir, f"asr-{datetime.now().date()}@{uuid.uuid4().hex}.wav")
-            self._save_audio_to_file(stream_in_audio, tmpfile)
+            pcm = b"".join(stream_in_audio)
+            if not pcm:
+                return "", None, ""
 
-            result = self.pipe(tmpfile)
+            audio = np.frombuffer(pcm, dtype="<i2").astype(np.float32) / 32768.0
+            tmpfile = None
+            if keep_wav:
+                os.makedirs(self.output_dir, exist_ok=True)
+                tmpfile = os.path.join(self.output_dir, f"asr-{datetime.now().date()}@{uuid.uuid4().hex}.wav")
+                self._save_audio_to_file([pcm], tmpfile)
+
+            result = self.pipe(
+                audio,
+                return_language=True,
+                generate_kwargs={
+                    "task": "transcribe",
+                    "forced_decoder_ids": None,
+                    # Transformers 4.51.1 otherwise strips the detected language token.
+                    # The pipeline already limits each generation call to a 30-second chunk.
+                    "force_unique_generate_call": True,
+                },
+            )
             text = result["text"]
-            logger.info(f"recognize text: {text}")
-            return text, tmpfile
+            detected_language = next(
+                (chunk["language"] for chunk in result.get("chunks", []) if chunk.get("language")),
+                None,
+            )
+            self.last_detected_language = detected_language
+            language = self.LANGUAGE_CODES.get(detected_language, "")
+            logger.info(f"recognize text: {text}, language: {language}")
+            return text, tmpfile, language
 
         except Exception as e:
+            if raise_on_error:
+                raise
             logger.error(f"An error occurred during the ASR recognition process: {e}")
-            return None, None
+            return "", None, ""
 
 def create_instance(class_name, *args, **kwargs):
     # 获取类对象

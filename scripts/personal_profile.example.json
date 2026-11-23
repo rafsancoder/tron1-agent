@@ -1,0 +1,11 @@
+{
+  "full_name": "<full name>",
+  "education": {"en": "<education in English>", "fi": "<education in Finnish>"},
+  "internship": {"en": "<internship and responsibilities in English>", "fi": "<internship and responsibilities in Finnish>"},
+  "thesis": {"en": "<thesis and planned extensions in English>", "fi": "<thesis and planned extensions in Finnish>"},
+  "interests": {"en": "<interests in English>", "fi": "<interests in Finnish>"},
+  "supervisors": {
+    "thesis": {"staff_id": "<verified staff record ID>", "work_email": null},
+    "internship": {"staff_id": "<verified staff record ID>"}
+  }
+}

@@ -1,21 +1,15 @@
 import asyncio
 import logging
+import math
 import os
 import subprocess
 import time
 import uuid
 from abc import ABC, ABCMeta, abstractmethod
 from datetime import datetime
-from gtts import gTTS
-import edge_tts
-#import ChatTTS
-import torch
-import torchaudio
-import soundfile as sf
-import numpy as np
+from pathlib import Path
 import sys
 import re
-import requests
 logger = logging.getLogger(__name__)
 
 
@@ -43,6 +37,8 @@ class GTTS(AbstractTTS):
     def to_tts(self, text):
         tmpfile = self._generate_filename(".aiff")
         try:
+            from gtts import gTTS
+
             start_time = time.time()
             tts = gTTS(text=text, lang=self.lang)
             tts.save(tmpfile)
@@ -108,6 +104,10 @@ class EdgeTTS(AbstractTTS):
         logger.debug(f"Execution Time: {execution_time:.2f} seconds")
 
     async def text_to_speak(self, text, output_file):
+        import edge_tts
+        import numpy as np
+        import soundfile as sf
+
         communicate = edge_tts.Communicate(text, voice=self.voice)  # Use your preferred voice
         await communicate.save(output_file)
         # Add delay (silence) at the beginning of the audio
@@ -130,15 +130,24 @@ class EdgeTTS(AbstractTTS):
 class PiperTTS(AbstractTTS):
     def __init__(self, config):
         self.output_file = config.get("output_file", "tmp/")
-        vioce_en=config.get("voice_en","en_US-amy-medium")
-        vioce_zh=config.get("voice_zh","zh_CN-huayan-medium")
-        model_path_en = os.path.join(config.get("model_dir","models/tts/piper"), vioce_en + '.onnx')
-        model_path_zh = os.path.join(config.get("model_dir","models/tts/piper"), vioce_zh + '.onnx')
-        self.delay=config.get("delay",0)
-        self.model_path={
-            "en":model_path_en,
-            "zh":model_path_zh
+        self.delay = config.get("delay", 0)
+        self.piper_command = config.get("piper_command", ["piper"])
+        self.length_scale = config.get("length_scale")
+        if self.length_scale is not None and (
+            not math.isfinite(self.length_scale) or self.length_scale <= 0
+        ):
+            raise ValueError("Piper length_scale must be finite and greater than zero")
+        self.sentence_silence = config.get("sentence_silence", 1.5)
+        if not math.isfinite(self.sentence_silence) or self.sentence_silence < 0:
+            raise ValueError("Piper sentence_silence must be finite and non-negative")
+        model_dir = config.get("model_dir", "models/tts/piper")
+        voices = {
+            "en": config.get("voice_en", "en_US-amy-medium"),
+            "zh": config.get("voice_zh", "zh_CN-huayan-medium"),
         }
+        if voice_fi := config.get("voice_fi"):
+            voices["fi"] = voice_fi
+        self.model_path = {lang: os.path.join(model_dir, voice + ".onnx") for lang, voice in voices.items()}
 
     def _generate_filename(self, extension=".wav"):
         return os.path.join(self.output_file, f"tts-{datetime.now().date()}@{uuid.uuid4().hex}{extension}")
@@ -148,29 +157,49 @@ class PiperTTS(AbstractTTS):
         execution_time = end_time - start_time
         logger.debug(f"Execution Time: {execution_time:.2f} seconds")
 
-    async def text_to_speak(self, text, output_file,lang):
-        # Add spaces around punctuation marks in the text
-        text = re.sub(r'([,!?;:，：“‘！？])', r' \1.', text)
+    async def text_to_speak(self, text, output_file, lang):
+        import soundfile as sf
+
+        if lang not in self.model_path:
+            raise ValueError(f"No Piper voice configured for language {lang!r}")
+        model = self.model_path[lang]
+        for path in (model, model + ".json"):
+            if not Path(path).is_file():
+                raise FileNotFoundError(f"Missing Piper voice file: {path}")
+
+        options = []
+        if lang in {"en", "zh"}:
+            text = re.sub(r'([,!?;:，：“‘！？])', r' \1.', text)
+            options = ["--noise_w", "1.2"]
+        if self.length_scale is not None:
+            options.extend(["--length_scale", str(self.length_scale)])
         text = re.sub(r'\s+', ' ', text).strip()
+        if not text:
+            raise ValueError("Piper requires nonempty text")
         process = subprocess.run(
-            ['piper', '--model', self.model_path[lang], '--output_file', output_file,"--noise_w",str(1.2),"--sentence_silence",str(1.5)],
+            [*self.piper_command, "--model", model, "--output_file", output_file,
+             *options, "--sentence_silence", str(self.sentence_silence)],
             input=text,
-            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
             capture_output=True,
             shell=False
         )
-        if process.returncode == 0:
-            # Add 0.5 seconds of silence to the beginning of the audio
-            audio, sample_rate = sf.read(output_file)
-            silence = torch.zeros(int(self.delay * sample_rate))
-            audio_with_silence = torch.cat((silence, torch.from_numpy(audio)))
-            sf.write(output_file, audio_with_silence.numpy(), sample_rate)
         if process.returncode != 0:
-            logger.error(f"Piper TTS generation failed: {process.stderr}")
-            raise RuntimeError(f"Piper TTS generation failed with return code {process.returncode}")
+            raise RuntimeError(f"Piper synthesis failed (exit {process.returncode}): {process.stderr.strip()}")
+        info = sf.info(output_file)
+        if info.format != "WAV" or info.frames == 0:
+            raise RuntimeError(f"Piper produced no WAV audio: {output_file}")
+        if self.delay:
+            import numpy as np
+
+            audio, sample_rate = sf.read(output_file)
+            silence = np.zeros(int(self.delay * sample_rate))
+            sf.write(output_file, np.concatenate((silence, audio)), sample_rate)
 
 
-    def to_tts(self, text,lang):
+    def to_tts(self, text, lang, *, raise_on_error=False):
         tmpfile = self._generate_filename(".wav")
         start_time = time.time()
         try:
@@ -178,11 +207,14 @@ class PiperTTS(AbstractTTS):
             self._log_execution_time(start_time)
             return tmpfile
         except Exception as e:
-            logger.info(f"Failed to generate TTS file: {e}")
+            if raise_on_error:
+                raise
+            logger.error(f"Failed to generate Piper TTS file: {e}")
             return None
 
 class KOKOROTTS(AbstractTTS):
     def __init__(self, config):
+        import torch
         from kokoro import KPipeline,KModel
         self.output_file = config.get("output_file", ".")
         #self.lang = config.get("lang", "z")
@@ -221,6 +253,9 @@ class KOKOROTTS(AbstractTTS):
     def en_callable(self,text):
         return next(self.pipeline["en"](text)).phonemes
     async def text_to_speak(self, text, output_file,lang):
+        import numpy as np
+        import soundfile as sf
+
         generator = self.pipeline[lang](
             text, voice=self.voice[lang],  # <= change voice here
             speed=self.speed_callable, split_pattern=r'\n+'
@@ -279,6 +314,9 @@ class CosyVoiceTTS(AbstractTTS):
         execution_time = end_time - start_time
         logger.debug(f"Execution Time: {execution_time:.2f} seconds")
     async def text_to_speak(self, texts, output_file,lang):
+        import torch
+        import torchaudio
+
         generator = self.cosyvoice.inference_sft(tts_text=texts, spk_id= self.voice[lang], stream=False)
         wavs=[]
         for i, audio in enumerate(generator):
@@ -352,6 +390,8 @@ class MegaTTS(AbstractTTS):
         
 class TTSAPI(AbstractTTS):
     def __init__(self, config):
+        import requests
+
         init_api = config.get('init_api')
         self.api = config.get('api')
         if init_api is  None:
@@ -373,6 +413,8 @@ class TTSAPI(AbstractTTS):
         execution_time = end_time - start_time
         logger.debug(f"Execution Time: {execution_time:.2f} seconds")
     async def text_to_speak(self, data, output_file):
+        import requests
+
         response = requests.post(self.api, data=data, stream=True)
         # 检查响应状态码
         if response.status_code == 200:

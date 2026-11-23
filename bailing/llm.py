@@ -15,6 +15,7 @@ class OpenAILLM(LLM):
         self.model_name = config.get("model_name")
         self.api_key = config.get("api_key")
         self.base_url = config.get("url")
+        self.raise_on_error = config.get("raise_on_error", False)
         self.client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url)
 
     def response(self, dialogue):
@@ -28,6 +29,8 @@ class OpenAILLM(LLM):
                 yield chunk.choices[0].delta.content
                 #yield chunk.choices[0].delta.get("content", "")
         except Exception as e:
+            if self.raise_on_error:
+                raise
             logger.error(f"Error in response generation: {e}")
 
     def response_call(self, dialogue, functions_call):

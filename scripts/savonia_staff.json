@@ -1,0 +1,26 @@
+{
+  "teemu_matilainen": {
+    "name": "Teemu Matilainen",
+    "title": {"en": "Lecturer", "fi": "Lehtori"},
+    "department": {"en": "International Engineering Education and Information Technology", "fi": "Tekniikka KV-koulutus, Tietotekniikka"},
+    "responsibilities": {
+      "en": "Savonia documented his work investigating how to optimize a picking robot's trajectories in the AuToTIE project. The directory does not list his general duties.",
+      "fi": "Savonian mukaan hän selvitti poimintarobotin liikeratojen optimointia AuToTIE-hankkeessa. Henkilöstöhaku ei kuvaa hänen yleisiä työtehtäviään."
+    },
+    "work_email": null,
+    "verified_on": "2026-11-23",
+    "sources": ["https://www.savonia.fi/henkilosto/teemu-matilainen/", "https://www.savonia.fi/artikkelit/automaatio-ja-tekoaly-tiedoksi-autotie/"]
+  },
+  "markku_kellomaki": {
+    "name": "Markku Kellomäki",
+    "title": {"en": "Senior lecturer", "fi": "Lehtori"},
+    "department": {"en": "Information Technology", "fi": "Tietotekniikka"},
+    "responsibilities": {
+      "en": "Savonia lists him as the IoT degree programme coordinator and an IoT pathway diploma tutor teacher.",
+      "fi": "Savonia ilmoittaa hänet IoT-tutkinto-ohjelman koordinaattoriksi ja IoT-väylädiplomiohjelman opettajatuutoriksi."
+    },
+    "work_email": "markku.kellomaki@savonia.fi",
+    "verified_on": "2026-11-23",
+    "sources": ["https://www.savonia.fi/tutustu-savoniaan/yhteystiedot/microkadun-kampus/", "https://www.savonia.fi/en/study-with-us/studies/bachelors/bachelor-of-engineering-information-technology/", "https://www.savonia.fi/en/study-with-us/studies/diploma-programmes/pathway-diploma-programme/pathway-diploma-in-internet-of-things-iot/"]
+  }
+}

@@ -38,7 +38,7 @@ class SileroVAD(VAD):
         sound = sound.astype(np.float32) / 32768.0
         return sound
 
-    def is_vad(self, data):
+    def is_vad(self, data, *, raise_on_error=False):
         try:
             audio_int16 = np.frombuffer(data, dtype=np.int16)
             audio_float32 = self.int2float(audio_int16)
@@ -47,6 +47,8 @@ class SileroVAD(VAD):
                 logger.debug(f"VAD output: {vad_output}")
             return vad_output
         except Exception as e:
+            if raise_on_error:
+                raise
             logger.error(f"Error in VAD processing: {e}")
             return None
 
