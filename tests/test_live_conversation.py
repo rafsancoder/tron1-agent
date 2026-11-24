@@ -1,9 +1,11 @@
+import sys
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
 
 from bailing.asr import WhisperASR
+from scripts import verify_live
 from scripts.verify_live import AudioDevices, capture_frames, pcm16_chunks, run_session
 
 
@@ -58,6 +60,42 @@ def test_missing_audio_device_fails_before_opening_stream():
     with pytest.raises(ValueError, match="Missing input or output device"):
         AudioDevices(port, None, None)
     port.query_devices.assert_not_called()
+
+
+@pytest.mark.parametrize("override_paths", [False, True])
+def test_live_check_uses_selected_devices_and_model_paths(tmp_path, monkeypatch, override_paths):
+    cache = tmp_path / "whisper cache"
+    voices = tmp_path / "piper voices"
+    monkeypatch.chdir(tmp_path)
+    args = []
+    if override_paths:
+        args = ["--whisper-cache-dir", str(cache), "--piper-model-dir", str(voices)]
+    else:
+        monkeypatch.setattr(verify_live, "CACHE_DIR", cache)
+        voices = tmp_path / "models" / "tts" / "piper"
+    snapshot = cache / "models--openai--whisper-small" / "snapshots" / verify_live.WHISPER_REVISION
+    snapshot.mkdir(parents=True)
+    (snapshot / "model.safetensors").touch()
+    voices.mkdir(parents=True)
+    for voice in ("en_US-ryan-medium", "fi_FI-harri-medium"):
+        for extension in (".onnx", ".onnx.json"):
+            (voices / (voice + extension)).touch()
+    port = Mock()
+    port.query_devices.return_value = {"default_samplerate": 48000, "max_output_channels": 2}
+    monkeypatch.setitem(sys.modules, "sounddevice", port)
+    monkeypatch.setattr(sys, "argv", ["verify_live", "--check", "--seconds", "8",
+                                    "--input-device", "7", "--output-device", "9", *args])
+    monkeypatch.setattr(verify_live, "check_ollama", Mock())
+    monkeypatch.setattr("bailing.llm.OpenAILLM", Mock())
+    asr = Mock()
+    monkeypatch.setattr(verify_live, "WhisperASR", asr)
+
+    assert verify_live.main() == 0
+    asr.assert_called_once_with({"model_dir": str(snapshot)})
+    port.check_input_settings.assert_called_once_with(device=7, channels=1, samplerate=48000, dtype="float32")
+    port.check_output_settings.assert_called_once_with(device=9, channels=2, samplerate=48000, dtype="float32")
+    port.InputStream.assert_not_called()
+    port.play.assert_not_called()
 
 
 def test_strict_llm_propagates_stream_failure(monkeypatch):

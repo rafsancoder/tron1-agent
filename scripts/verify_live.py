@@ -210,6 +210,10 @@ def main():
     parser.add_argument("--list-devices", action="store_true", help="List devices and exit")
     parser.add_argument("--input-device", type=int, help="Input device ID from --list-devices")
     parser.add_argument("--output-device", type=int, help="Output device ID from --list-devices")
+    parser.add_argument("--whisper-cache-dir", type=Path, default=CACHE_DIR,
+                        help="Hugging Face cache root containing the pinned Whisper snapshot")
+    parser.add_argument("--piper-model-dir", type=Path, default=Path("models/tts/piper"),
+                        help="Directory containing both the Ryan and Harri voice files")
     parser.add_argument("--seconds", type=float, help="Use fixed-duration debug capture instead of VAD")
     parser.add_argument("--silence", type=float, default=1.2, help="End-of-speech pause in seconds (default: 1.2)")
     parser.add_argument("--no-speech-timeout", type=float, default=8.0, help="Seconds to wait for speech (default: 8)")
@@ -245,11 +249,11 @@ def main():
         check_ollama()
         from bailing.llm import OpenAILLM
 
-        snapshot = CACHE_DIR / "models--openai--whisper-small" / "snapshots" / WHISPER_REVISION
+        snapshot = args.whisper_cache_dir.expanduser() / "models--openai--whisper-small" / "snapshots" / WHISPER_REVISION
         if not (snapshot / "model.safetensors").is_file():
             raise FileNotFoundError(f"Missing cached Whisper weights: {snapshot}")
         with TemporaryDirectory(prefix="tron1-live-") as temporary:
-            piper = bilingual_piper(Path("models/tts/piper"), temporary)
+            piper = bilingual_piper(args.piper_model_dir.expanduser(), temporary)
             for language in LANGUAGES:
                 model = piper.model_path[language]
                 for path in (model, model + ".json"):

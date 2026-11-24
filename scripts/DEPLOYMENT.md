@@ -33,20 +33,34 @@ Voice source is the `rhasspy/piper-voices` repository, under `en/en_US/ryan/medi
 
 Windows verification used Python 3.10.9, Torch and Torchaudio 2.6.0+cu124, Transformers 4.51.1, Hugging Face Hub 0.36.2, NumPy 1.26.4, OpenAI SDK 1.76.0, Piper 1.8.0, ONNX Runtime 1.23.2, SoundDevice 0.5.0, SoundFile 0.12.1 and Silero VAD 5.1. Tests used pytest 8.3.5. The recorded comparison on the GTX 1660 SUPER sampled a system GPU peak of 5,407 MiB out of 6,144 MiB. That measurement is specific to the Windows run.
 
-Before choosing Linux packages, inventory the target distribution, CPU architecture, Python, CPU, RAM, swap, disk, accelerator and drivers. Verify the availability of compatible Torch/Torchaudio, Piper/ONNX Runtime wheels, PortAudio and libsndfile, and check access to the audio backend from the intended user account. Ollama and Whisper can have different device placement. Measure both on the target with the models loaded together. No Linux Torch or CUDA build has been selected.
+## Windows startup
+
+Run from the checkout root in PowerShell. Devices 1 and 4 were used on the verification PC. Use the IDs reported on your machine.
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 -m scripts.verify_live --list-devices
+.\.venv\Scripts\python.exe -X utf8 -m scripts.verify_live --input-device 1 --output-device 4 --check
+.\.venv\Scripts\python.exe -X utf8 -m scripts.verify_live --input-device 1 --output-device 4
+```
 
 ## External files and startup
 
-- The live verifier currently reads the model paths shown above. Place or mount the artifacts at those paths. For a standalone Piper check, `scripts.verify_tts --model-dir <directory>` accepts a different voice directory.
+- The live verifier defaults to the model locations above. Use `--whisper-cache-dir` to point to a different Hugging Face cache root that contains the same pinned snapshot layout, and `--piper-model-dir` for a different voice directory. For a standalone Piper check, `scripts.verify_tts --model-dir <directory>` accepts a voice directory.
 - Public Savonia facts and staff records ship with the checkout. Enable them with `--savonia`. An optional private profile goes in `asset/personal-profiles/<name>.json`. Use [the example](personal_profile.example.json) as a template and select it with `--savonia --profile <name>`. A selected profile is visible to anyone using that session.
 - Supply test WAVs by path to `scripts.verify_whisper` or `scripts.verify_conversation`. Keep personal recordings, generated audio, benchmark reports, model files, virtual environments and credentials local. Live replies use the platform temporary directory.
 
-After provisioning and with the target environment active:
+## Linux transfer checklist
+
+Every Linux step below is unverified on TRON 1.
+
+1. **Inventory the target.** Record distribution, CPU architecture, Python, CPU, RAM, swap, free disk, and any accelerator and driver already present. Identify the audio backend, capture and playback devices, and the user account that can access them.
+2. **Provision the runtime (hardware-dependent).** Select a compatible Python environment, Torch/Torchaudio build, Ollama runtime, Piper/ONNX Runtime, PortAudio and libsndfile only after inventory. Start from the Windows version record for comparison. Verify compatible builds, especially on ARM. No Linux Torch or CUDA package is prescribed. Check Whisper and Ollama device placement separately, including CPU fallback and available memory.
+3. **Provision the artifacts.** Transfer or download the pinned Whisper snapshot, both checked Piper voice pairs, and the exact Ollama tag. Verify the Piper SHA-256 hashes and create the local Ollama alias from the supplied Modelfile. Keep assets outside version control.
+4. **Test from the intended account.** With the target environment active, enumerate devices, run the startup check, then verify an English and a Finnish WAV and real Piper playback before recording live. Measure latency and peak memory with Whisper and Ollama loaded together.
 
 ```text
 python -m scripts.verify_live --list-devices
-python -m scripts.verify_live --input-device INPUT_ID --output-device OUTPUT_ID --check
-python -m scripts.verify_live --input-device INPUT_ID --output-device OUTPUT_ID --savonia
+python -m scripts.verify_live --input-device INPUT_ID --output-device OUTPUT_ID --whisper-cache-dir "/path/to/Hugging Face cache" --piper-model-dir "/path/to/Piper voices" --check
 ```
 
-Use device IDs from the target machine. The startup check loads Whisper and checks devices, model files and Ollama metadata. Verify real recorded inference and Piper playback separately before a live microphone pilot.
+Replace the example paths and IDs before running. Omit the path flags when using the repository defaults. The startup check loads Whisper and checks device settings, model files and Ollama metadata. After the separate audio checks, remove `--check` for a supervised live pilot.
